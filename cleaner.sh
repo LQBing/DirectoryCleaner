@@ -15,8 +15,7 @@ do
     echo "clean files $KEEP days ago in [$x]"
     find $x -type f -mtime +$KEEP
     find $x -type f -mtime +$KEEP -delete
-    find $x -empty -type d
-    find $x -empty -type d -delete
+    find $x -type d -mtime +$KEEP -empty
+    find $x -type d -mtime +$KEEP -empty -delete
     mkdir -p $x
 done
-
