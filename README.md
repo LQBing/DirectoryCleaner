@@ -6,19 +6,23 @@ a tool image for clean folder
 
 CLEANPATH: Directories need to clean, split with ";", can not be none.
 
-CRON: Run as scheduled, example as '* * * * *'. Or you wanna run once, keep it empty.
+CRON: Run as scheduled, example as `* * * * *`. Or you wanna run once, keep it empty.
 
 KEEP: How many days ago before files need to clean. Default value 30
 
 ## run once
 
+```shell
 docker run --rm -it --name dc -v /clean/path:/workspace -e CLEANPATH="/var/logs;/var/log" lqbing/directorycleaner
+```
 
 ## run as scheduled
 
+```shell
 docker run -d --name directorycleaner -v /clean/path:/workspace -e CRON="* * * * *" -e CLEANPATH="/var/logs;/var/log" lqbing/directorycleaner
+```
 
-## run in kubernetes
+## run in kubernetes as DaemonSet
 
 ```yaml
 kind: DaemonSet
@@ -46,6 +50,8 @@ spec:
               value: "* * * * *"
             - name: KEEP
               value: '7'
+            - name: CLEANEMPTYFOLDER
+              value: "true"
           volumeMounts:
             - name: hostlog
               mountPath: /hostlog/
