@@ -7,7 +7,6 @@ paths=$(echo "$CLEANPATH" | tr ";" "\n")
 for x in $paths; do
     if [ ! -d "$x" ] && [ ! -f "$x" ]; then
         echo "$x not exist"
-        exit 0
     fi
 done
 CROND=$(grep -n cleaner /var/spool/cron/crontabs/root)
