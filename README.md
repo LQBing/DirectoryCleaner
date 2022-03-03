@@ -13,13 +13,13 @@ KEEP: How many days ago before files need to clean. Default value 30
 ## run once
 
 ```shell
-docker run --rm -it --name dc -v /clean/path:/workspace -e CLEANPATH="/var/logs;/var/log" lqbing/directorycleaner
+docker run --rm -it --name dc -v /clean/path:/workspace -e CLEANPATH="/var/log/test*" -e KEEPPATH="/var/log/test1;/var/log/test2" lqbing/directorycleaner
 ```
 
 ## run as scheduled
 
 ```shell
-docker run -d --name directorycleaner -v /clean/path:/workspace -e CRON="* * * * *" -e CLEANPATH="/var/logs;/var/log" lqbing/directorycleaner
+docker run -d --name dc -v /clean/path:/workspace -e CRON="* * * * *" -e CLEANPATH="/var/log/test*" -e KEEPPATH="/var/log/test1;/var/log/test2" lqbing/directorycleaner
 ```
 
 ## run in kubernetes as DaemonSet
@@ -46,6 +46,8 @@ spec:
           env:
             - name: CLEANPATH
               value: "/hostlog;/var/log"
+            - name: KEEPPATH
+              value: "/var/log/test1;/var/log/test2"
             - name: CRON
               value: "* * * * *"
             - name: KEEP
