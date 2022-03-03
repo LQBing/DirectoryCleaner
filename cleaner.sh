@@ -1,4 +1,13 @@
 #!/bin/sh
+if [ -n "$KEEPPATH" ]; then
+    keeppaths=$(echo "$KEEPPATH" | tr ";" "\n")
+    for x in $keeppaths; do
+        if [ ! -d "$x" ] && [ ! -f "$x" ]; then
+            echo "$x not exist, create it"
+            mkdir -p "$x"
+        fi
+    done
+fi
 if [ -z "$KEEP" ]; then
     KEEP=30
 fi
@@ -9,8 +18,8 @@ fi
 paths=$(echo "$CLEANPATH" | tr ";" "\n")
 for x in $paths; do
     if [ ! -d "$x" ] && [ ! -f "$x" ]; then
-        echo "$x not exist"
-        exit 0
+        echo "$x not exist,exit."
+        mkdir -p "$x"
     fi
 done
 
