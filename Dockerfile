@@ -1,5 +1,6 @@
 FROM alpine
-RUN apk add --no-cache logrotate gzip
+RUN apk add --no-cache logrotate gzip \
+    && mkdir -p /var/lib/directorycleaner
 COPY cleaner.sh /usr/bin/cleaner
 COPY rotate.sh /usr/bin/rotate
 COPY entrypoint.sh /entrypoint.sh
