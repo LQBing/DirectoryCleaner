@@ -11,6 +11,10 @@ fi
 if [ -z "$KEEP" ]; then
     KEEP=30
 fi
+case "$CLEANEMPTYFOLDER" in
+    false|FALSE|0|no|NO|off|OFF) clean_empty=false ;;
+    *) clean_empty=true ;;
+esac
 if [ -z "$CLEANPATH" ]; then
     echo "CLEANPATH empty"
     exit 0
@@ -26,11 +30,11 @@ done
 date
 for x in $paths; do
     echo "clean files $KEEP days ago in [$x]"
-    find "$x" -type f -mtime +$KEEP
-    find "$x" -type f -mtime +$KEEP -delete
-    if [ -z "$CLEANEMPTYFOLDER" ]; then
-        find "$x" -type d -mtime +$KEEP -empty
-        find "$x" -type d -mtime +$KEEP -empty -delete
+    find "$x" -type f -mtime +"$KEEP"
+    find "$x" -type f -mtime +"$KEEP" -delete
+    if [ -d "$x" ] && [ "$clean_empty" = true ]; then
+        find "$x" -type d -mtime +"$KEEP" -empty
+        find "$x" -type d -mtime +"$KEEP" -empty -delete
         mkdir -p "$x"
     fi
 done

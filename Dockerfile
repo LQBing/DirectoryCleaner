@@ -1,5 +1,7 @@
 FROM alpine
+RUN apk add --no-cache logrotate gzip
 COPY cleaner.sh /usr/bin/cleaner
+COPY rotate.sh /usr/bin/rotate
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /usr/bin/cleaner
+RUN chmod +x /usr/bin/cleaner /usr/bin/rotate
 ENTRYPOINT [ "/bin/ash", "entrypoint.sh"]
