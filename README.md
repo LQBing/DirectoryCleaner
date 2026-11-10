@@ -50,7 +50,103 @@ The entrypoint rewrites its own `/usr/bin/cleaner` and `/usr/bin/rotate` cron li
 
 Every regular file under `ROTATEPATH` is considered for rotation, including files in subdirectories. A file is actually rotated only when it is non-empty and either the size threshold is exceeded or the configured time interval has elapsed. Existing rotated files (`.1`, `.2`, `.gz`, and other compressed archives) are skipped so they are not rotated twice.
 
-The default `copytruncate` mode is safer for generic log writers because it keeps the same inode. `create` mode is suitable for applications that reopen their log file after it is renamed, such as Python `WatchedFileHandler`. If your writer does not reopen its file descriptor, use `copytruncate`; if it does, `create` avoids the small copy-then-truncate window.
+## ROTATEMODE: create vs copytruncate
+
+`ROTATEMODE` controls how the active log file is replaced.
+
+### create
+
+```text
+app.log.json  ->  app.log.json.1
+app.log.json  ->  new empty file, new inode
+```
+
+logrotate renames the active file and creates a new file with the original name. The application must reopen the log path on its next write.
+
+This is the recommended mode for applications that can detect an inode change and reopen, especially:
+
+- Python `logging.handlers.WatchedFileHandler`
+- services with multiple workers or child processes that write the same log file
+- log files collected by fluent-bit via `*.log.json`
+- any application with an explicit reopen-on-rotation mechanism
+
+Advantages:
+
+- no copy-then-truncate window, so no log lines are lost between copy and truncate
+- the new file has a new inode, so fluent-bit does not apply the old file offset to the new file
+- safe for multi-process writers when every process uses `WatchedFileHandler`
+- clean file replacement and predictable `.1`, `.2`, ... history
+
+Requirements and risks:
+
+- the application must reopen the file; if it keeps writing to the old descriptor, logs continue going to `.1`
+- do not combine with an in-process `RotatingFileHandler`; that causes double rotation
+- the application user must be able to write the newly created file. Use `ROTATECREATE` when the default owner/group/mode is not suitable, for example:
+
+```yaml
+ROTATEMODE: "create"
+ROTATECREATE: "0640 root root"
+```
+
+When `ROTATECREATE` is empty, logrotate preserves the original owner, group, and mode.
+
+### copytruncate
+
+```text
+app.log.json  ->  copy contents to app.log.json.1
+app.log.json  ->  truncate the same file to 0 bytes, same inode
+```
+
+The original path is truncated in place. It does become 0 bytes; the old contents are in `.1`. The application does not need to reopen because it keeps writing to the same inode.
+
+Use this mode only when:
+
+- the application cannot be changed to reopen its log file
+- the application holds the file descriptor open indefinitely
+- a very small chance of losing recent lines is acceptable
+- the collector is not sensitive to inode reuse and file-size resets
+
+Advantages:
+
+- no application reopen required
+- works with simple or legacy writers that keep a permanent file descriptor
+- the original path remains valid
+
+Risks:
+
+- logrotate copies first and truncates second; writes between those two operations can be lost
+- the operation is not atomic
+- a large file needs temporary disk space and extra I/O for the copy
+- for fluent-bit and other inode + offset tailers, the same inode suddenly shrinking to 0 can cause duplicate delivery or lost lines depending on the tail implementation
+- a writer that is not using append mode can keep a stale file offset, producing a sparse file or unexpected gaps
+
+`copytruncate` is the generic default because it works with the widest range of applications, but it is not the best choice for the beop JSON log pipeline.
+
+### Which one to use
+
+| Writer behavior | Recommended mode |
+|---|---|
+| Python `WatchedFileHandler` | `create` |
+| Application explicitly reopens after rotation | `create` |
+| Multi-worker process writing one file | `create`, with all workers using `WatchedFileHandler` |
+| Application holds the file descriptor and cannot reopen | `copytruncate` |
+| Application already uses its own `RotatingFileHandler` | Do not rotate externally; disable one of the two mechanisms |
+
+For beop-util services such as evo-mcp, engine-gateway, memory-engine, and knowledge-lake, use:
+
+```yaml
+ROTATEMODE: "create"
+```
+
+The default remains `copytruncate` for compatibility with generic workloads, but the beoplog deployment explicitly sets `create`.
+
+After either mode, verify that:
+
+- `.1` was created
+- the active file exists and is writable
+- the application writes new lines
+- no `Logging error` appears
+- ES does not show duplicated lines
 
 When `ROTATECOMPRESS=true`, the most recent rotated file may remain uncompressed until the next rotation cycle because `delaycompress` is enabled. This avoids compressing a file that may still be held open by a writer.
 
